@@ -6,7 +6,7 @@ require("dotenv").config();
 const app = express();
 app.use(
   cors({
-    origin: ["http://localhost:5173","https://ramadan-bags.vercel.app"],
+    origin: ["http://localhost:5173","https://ramadan-bags.vercel.app","https://rbags-admin.vercel.app"],
     credentials: true,
     optionSuccessStatus: 200,
   })
