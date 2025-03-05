@@ -35,16 +35,16 @@ app.post("/login", async (req, res) => {
       return res.send({ status: "error" });
     }
   } catch {
-    res.status(500).send({ status: "error", message: err.message });
+    return res.send({ status: "error", message: err.message });
   }
 });
 
 app.get("/items", async (req, res) => {
   try {
     const items = await Item.find();
-    res.send({ status: "ok", items: items });
+    return res.send({ status: "ok", items: items });
   } catch (err) {
-    res.status(500).send({ status: "error", message: err.message });
+    return res.send({ status: "error", message: err.message });
   }
 });
 
@@ -52,9 +52,9 @@ app.post("/items", async (req, res) => {
   try {
     await Item.insertMany(req.body);
     const allItems = await Item.find();
-    res.status(201).send({ status: "ok", items: allItems });
+    return res.send({ status: "ok", items: allItems });
   } catch (err) {
-    res.status(500).send({ status: "error", message: err.message });
+    return res.send({ status: "error", message: err.message });
   }
 });
 
@@ -68,9 +68,9 @@ app.put("/items", async (req, res) => {
     }));
     await Item.bulkWrite(bulkOps);
     const allItems = await Item.find();
-    res.send({ status: "ok", items: allItems });
+    return res.send({ status: "ok", items: allItems });
   } catch (err) {
-    res.status(500).send({ status: "error", message: err.message });
+    return res.send({ status: "error", message: err.message });
   }
 });
 
@@ -83,9 +83,9 @@ app.delete("/items", async (req, res) => {
     }));
     await Item.bulkWrite(bulkOps);
     const allItems = await Item.find();
-    res.send({ status: "ok", items: allItems });
+    return res.send({ status: "ok", items: allItems });
   } catch (err) {
-    res.status(500).send({ status: "error", message: err.message });
+    return res.send({ status: "error", message: err.message });
   }
 });
 
