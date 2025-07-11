@@ -60,7 +60,7 @@ app.post("/login", async (req: Request, res: Response) => {
 app.get("/items", async (req: Request, res: Response) => {
   try {
     const items = await Item.find();
-    res.status(200).json({ items: items });
+    res.status(200).send({ items: items });
     return;
   } catch (err) {
     res.status(500).json();
