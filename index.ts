@@ -44,7 +44,7 @@ const Item: Model<IitemSchema> = mongoose.model<IitemSchema>(
 
 app.get("/", async (req: Request, res: Response) => {
   res.status(200).send("ok");
-  return
+  return;
 });
 
 app.post("/login", async (req: Request, res: Response) => {
@@ -64,8 +64,8 @@ app.post("/login", async (req: Request, res: Response) => {
 
 app.get("/items", async (req: Request, res: Response) => {
   try {
-    const items = await Item.find();
-    res.status(200).send({ items: items });
+    const items = await Item.find().lean();
+    res.status(200).json({ items: items });
     return;
   } catch (err) {
     res.status(500).json();
@@ -76,7 +76,7 @@ app.get("/items", async (req: Request, res: Response) => {
 app.post("/items", async (req: Request, res: Response) => {
   try {
     await Item.insertMany(req.body);
-    const allItems = await Item.find();
+    const allItems = await Item.find().lean();
     res.status(201).json({ items: allItems });
     return;
   } catch (err) {
@@ -94,7 +94,7 @@ app.put("/items", async (req: Request, res: Response) => {
       },
     }));
     await Item.bulkWrite(bulkOps);
-    const allItems = await Item.find();
+    const allItems = await Item.find().lean();
     res.status(200).json({ items: allItems });
     return;
   } catch (err) {
@@ -111,7 +111,7 @@ app.delete("/items", async (req: Request, res: Response) => {
       },
     }));
     await Item.bulkWrite(bulkOps);
-    const allItems = await Item.find();
+    const allItems = await Item.find().lean();
     res.status(200).json({ status: "ok", items: allItems });
     return;
   } catch (err) {
