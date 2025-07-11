@@ -1,9 +1,9 @@
-import express, { Request, Response } from "express";
+import express, {Application, Request, Response } from "express";
 import mongoose, { Schema, Document, Model } from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 
-const app = express();
+const app: Application = express();
 dotenv.config();
 
 app.use(
@@ -11,7 +11,7 @@ app.use(
     origin: [
       "http://localhost:5173",
       "https://ramadan-bags.vercel.app",
-      "https://rbags-admin.vercel.app",
+      "https://rbags-back.vercel.app",
     ],
     credentials: true,
     optionsSuccessStatus: 200,
