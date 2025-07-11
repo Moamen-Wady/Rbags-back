@@ -1,4 +1,4 @@
-import express, {Application, Request, Response } from "express";
+import express, { Application, Request, Response } from "express";
 import mongoose, { Schema, Document, Model } from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -41,6 +41,11 @@ const Item: Model<IitemSchema> = mongoose.model<IitemSchema>(
   "Item",
   itemSchema
 );
+
+app.get("/", async (req: Request, res: Response) => {
+  res.status(200).json();
+  return
+});
 
 app.post("/login", async (req: Request, res: Response) => {
   try {
