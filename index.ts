@@ -43,7 +43,7 @@ const Item: Model<IitemSchema> = mongoose.model<IitemSchema>(
 );
 
 app.get("/", async (req: Request, res: Response) => {
-  res.status(200).json();
+  res.status(200).send("ok");
   return
 });
 
