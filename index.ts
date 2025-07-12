@@ -20,22 +20,28 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+if (!process.env.MDBUSER || !process.env.MDBPWD || !process.env.MDBDB) {
+  throw new Error("MongoDB credentials are missing in environment variables");
+}
+
 mongoose
-  .connect(process.env.MONGO_URI || "")
+  .connect(
+    `mongodb+srv://${process.env.MDBUSER}:${process.env.MDBPWD}@cluster0.iumas.mongodb.net/${process.env.MDBDB}?retryWrites=true&w=majority`
+  )
   .then(() => console.log("MongoDB Connected"))
   .catch((err) => console.log("MongoDB Connection Error:", err));
 
 interface IitemSchema extends Document {
-  name: String;
-  total: String;
-  unit: String;
-  available: String;
+  name: string;
+  total: string;
+  unit: string;
+  available: string;
 }
 const itemSchema: Schema = new mongoose.Schema({
-  name: String,
-  total: String,
-  unit: String,
-  available: String,
+  name: { type: String, required: true },
+  total: { type: String, required: true },
+  unit: { type: String, required: true },
+  available: { type: String, required: true },
 });
 const Item: Model<IitemSchema> = mongoose.model<IitemSchema>(
   "Item",
@@ -105,14 +111,14 @@ app.put("/items", async (req: Request, res: Response) => {
 
 app.delete("/items", async (req: Request, res: Response) => {
   try {
-    const bulkOps = req.body.map((id: mongoose.Schema.Types.ObjectId) => ({
+    const bulkOps = req.body.map((id: string) => ({
       deleteOne: {
         filter: { _id: id },
       },
     }));
     await Item.bulkWrite(bulkOps);
     const allItems = await Item.find().lean();
-    res.status(200).json({ status: "ok", items: allItems });
+    res.status(200).json({ items: allItems });
     return;
   } catch (err) {
     res.status(500).json();
