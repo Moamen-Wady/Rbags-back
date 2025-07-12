@@ -62,7 +62,7 @@ app.post("/login", async (req: Request, res: Response) => {
       res.status(401).json();
       return;
     }
-  } catch (err) {
+  } catch {
     res.status(500).json();
     return;
   }
@@ -73,7 +73,7 @@ app.get("/items", async (req: Request, res: Response) => {
     const items = await Item.find().lean();
     res.status(200).json({ items: items });
     return;
-  } catch (err) {
+  } catch {
     res.status(500).json();
     return;
   }
@@ -85,7 +85,7 @@ app.post("/items", async (req: Request, res: Response) => {
     const allItems = await Item.find().lean();
     res.status(201).json({ items: allItems });
     return;
-  } catch (err) {
+  } catch {
     res.status(500).json();
     return;
   }
@@ -103,7 +103,7 @@ app.put("/items", async (req: Request, res: Response) => {
     const allItems = await Item.find().lean();
     res.status(200).json({ items: allItems });
     return;
-  } catch (err) {
+  } catch {
     res.status(500).json();
     return;
   }
@@ -120,7 +120,7 @@ app.delete("/items", async (req: Request, res: Response) => {
     const allItems = await Item.find().lean();
     res.status(200).json({ items: allItems });
     return;
-  } catch (err) {
+  } catch {
     res.status(500).json();
     return;
   }
