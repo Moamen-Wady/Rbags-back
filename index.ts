@@ -11,7 +11,7 @@ app.use(
     origin: [
       "http://localhost:5173",
       "https://ramadan-bags.vercel.app",
-      "https://ramadan-bags.pages.dev",
+      "https://ramadan-bags.pages.dev", 
     ],
     credentials: true,
     optionsSuccessStatus: 200,
