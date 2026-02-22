@@ -1,4 +1,4 @@
-import express, { Application, Request, Response } from "express";
+import express, { Application, Request, Response, NextFunction } from "express";
 import mongoose, { Schema, Document, Model } from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -11,11 +11,11 @@ app.use(
     origin: [
       "http://localhost:5173",
       "https://ramadan-bags.vercel.app",
-      "https://ramadan-bags.pages.dev", 
+      "https://ramadan-bags.pages.dev",
     ],
     credentials: true,
     optionsSuccessStatus: 200,
-  })
+  }),
 );
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -26,26 +26,28 @@ if (!process.env.MDBUSER || !process.env.MDBPWD || !process.env.MDBDB) {
 
 mongoose
   .connect(
-    `mongodb+srv://${process.env.MDBUSER}:${process.env.MDBPWD}@cluster0.iumas.mongodb.net/${process.env.MDBDB}?retryWrites=true&w=majority`
+    `mongodb+srv://${process.env.MDBUSER}:${process.env.MDBPWD}@cluster0.iumas.mongodb.net/${process.env.MDBDB}?retryWrites=true&w=majority`,
   )
   .then(() => console.log("MongoDB Connected"))
   .catch((err) => console.log("MongoDB Connection Error:", err));
 
 interface IitemSchema extends Document {
   name: string;
-  total: string;
+  total: number;
   unit: string;
-  available: string;
+  available: number;
 }
+
 const itemSchema: Schema = new mongoose.Schema({
   name: { type: String, required: true },
-  total: { type: String, required: true },
+  total: { type: Number, required: true },
   unit: { type: String, required: true },
-  available: { type: String, required: true },
+  available: { type: Number, required: true },
 });
+
 const Item: Model<IitemSchema> = mongoose.model<IitemSchema>(
   "Item",
-  itemSchema
+  itemSchema,
 );
 
 app.get("/", async (req: Request, res: Response) => {
@@ -73,7 +75,8 @@ app.get("/items", async (req: Request, res: Response) => {
     const items = await Item.find().lean();
     res.status(200).json({ items: items });
     return;
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json();
     return;
   }
@@ -85,7 +88,8 @@ app.post("/items", async (req: Request, res: Response) => {
     const allItems = await Item.find().lean();
     res.status(201).json({ items: allItems });
     return;
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json();
     return;
   }
@@ -103,7 +107,8 @@ app.put("/items", async (req: Request, res: Response) => {
     const allItems = await Item.find().lean();
     res.status(200).json({ items: allItems });
     return;
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json();
     return;
   }
@@ -120,7 +125,8 @@ app.delete("/items", async (req: Request, res: Response) => {
     const allItems = await Item.find().lean();
     res.status(200).json({ items: allItems });
     return;
-  } catch {
+  } catch (err) {
+    console.error(err);
     res.status(500).json();
     return;
   }
