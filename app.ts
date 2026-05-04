@@ -45,6 +45,14 @@ const sanitizeNewItem = (item: any): NewItem => ({
   available: item.available ?? 0,
 });
 
+// Helper: ensure update data has all required fields (for PUT)
+const sanitizeUpdateItem = (item: any): Omit<Item, "id"> => ({
+  name: item.name ?? "",
+  total: item.total ?? 0,
+  unit: item.unit ?? "",
+  available: item.available ?? 0,
+});
+
 // Helper: convert DB row (with numeric id) to frontend format (string _id)
 const toFrontendItem = (item: Item) => ({
   ...item,
@@ -93,7 +101,6 @@ app.post("/items", async (req: Request, res: Response) => {
     }
 
     const cleanItems = rawItems.map((item) => {
-      // Remove any _id field (frontend may send it from stale state)
       const { _id, ...rest } = item;
       return sanitizeNewItem(rest);
     });
@@ -107,7 +114,7 @@ app.post("/items", async (req: Request, res: Response) => {
   }
 });
 
-// PUT /items – bulk update, expects array of items with string _id
+// PUT /items – bulk update (no transaction because neon-http doesn't support them)
 app.put("/items", async (req: Request, res: Response) => {
   try {
     const updates = req.body;
@@ -116,24 +123,17 @@ app.put("/items", async (req: Request, res: Response) => {
       return;
     }
 
-    await db.transaction(async (tx) => {
-      for (const item of updates) {
-        const idNum = toNumberId(item._id);
-        // Remove _id and only send updateable fields
-        const { _id, ...updateData } = item;
-        // Also fill missing fields with defaults (optional but safe)
-        const finalUpdate = {
-          name: updateData.name ?? "",
-          total: updateData.total ?? 0,
-          unit: updateData.unit ?? "",
-          available: updateData.available ?? 0,
-        };
-        await tx
-          .update(itemsTable)
-          .set(finalUpdate)
-          .where(eq(itemsTable.id, idNum));
-      }
-    });
+    // Execute each update sequentially (no transaction → simple and works)
+    // Not the best approach for large datasets, but it works for now
+    for (const item of updates) {
+      const idNum = toNumberId(item._id);
+      const { _id, ...updateData } = item;
+      const finalUpdate = sanitizeUpdateItem(updateData);
+      await db
+        .update(itemsTable)
+        .set(finalUpdate)
+        .where(eq(itemsTable.id, idNum));
+    }
 
     const allItems = await db.select().from(itemsTable);
     res.status(200).json({ items: allItems.map(toFrontendItem) });
