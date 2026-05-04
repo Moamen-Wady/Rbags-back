@@ -22,7 +22,7 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Disable caching
+// Disable caching to prevent stale data after delete
 app.use((req, res, next) => {
   res.setHeader(
     "Cache-Control",
@@ -32,12 +32,20 @@ app.use((req, res, next) => {
   next();
 });
 
-// Helper: convert frontend _id (string) to number
+// Helper: convert frontend _id (string) to database id (number)
 const toNumberId = (id: string | number): number => {
   return typeof id === "string" ? parseInt(id, 10) : id;
 };
 
-// Helper: convert DB row (with number id) to frontend format (string _id)
+// Helper: ensure an incoming item has all required fields with defaults
+const sanitizeNewItem = (item: any): NewItem => ({
+  name: item.name ?? "",
+  total: item.total ?? 0,
+  unit: item.unit ?? "",
+  available: item.available ?? 0,
+});
+
+// Helper: convert DB row (with numeric id) to frontend format (string _id)
 const toFrontendItem = (item: Item) => ({
   ...item,
   _id: String(item.id),
@@ -62,45 +70,44 @@ app.post("/login", async (req: Request, res: Response) => {
 app.get("/items", async (req: Request, res: Response) => {
   try {
     const items = await db.select().from(itemsTable);
-    const frontendItems = items.map(toFrontendItem);
-    res.status(200).json({ items: frontendItems });
+    res.status(200).json({ items: items.map(toFrontendItem) });
   } catch (err) {
     console.error(err);
     res.status(500).json();
   }
 });
 
-// POST /items - handles both single object and array (no _id)
+// POST /items – handles both single object and array, fills missing fields
 app.post("/items", async (req: Request, res: Response) => {
   try {
-    let newItems: NewItem[] = [];
-
+    let rawItems: any[] = [];
     if (Array.isArray(req.body)) {
-      newItems = req.body.map((item: any) => {
-        const { _id, ...clean } = item;
-        return clean;
-      });
+      rawItems = req.body;
     } else {
-      const { _id, ...clean } = req.body;
-      newItems = [clean];
+      rawItems = [req.body];
     }
 
-    if (newItems.length === 0) {
+    if (rawItems.length === 0) {
       res.status(400).json({ error: "No items to insert" });
       return;
     }
 
-    await db.insert(itemsTable).values(newItems);
+    const cleanItems = rawItems.map((item) => {
+      // Remove any _id field (frontend may send it from stale state)
+      const { _id, ...rest } = item;
+      return sanitizeNewItem(rest);
+    });
+
+    await db.insert(itemsTable).values(cleanItems);
     const allItems = await db.select().from(itemsTable);
-    const frontendItems = allItems.map(toFrontendItem);
-    res.status(201).json({ items: frontendItems });
+    res.status(201).json({ items: allItems.map(toFrontendItem) });
   } catch (err) {
     console.error(err);
     res.status(500).json();
   }
 });
 
-// PUT /items - bulk update (array of items with string _id)
+// PUT /items – bulk update, expects array of items with string _id
 app.put("/items", async (req: Request, res: Response) => {
   try {
     const updates = req.body;
@@ -112,24 +119,31 @@ app.put("/items", async (req: Request, res: Response) => {
     await db.transaction(async (tx) => {
       for (const item of updates) {
         const idNum = toNumberId(item._id);
+        // Remove _id and only send updateable fields
         const { _id, ...updateData } = item;
+        // Also fill missing fields with defaults (optional but safe)
+        const finalUpdate = {
+          name: updateData.name ?? "",
+          total: updateData.total ?? 0,
+          unit: updateData.unit ?? "",
+          available: updateData.available ?? 0,
+        };
         await tx
           .update(itemsTable)
-          .set(updateData)
+          .set(finalUpdate)
           .where(eq(itemsTable.id, idNum));
       }
     });
 
     const allItems = await db.select().from(itemsTable);
-    const frontendItems = allItems.map(toFrontendItem);
-    res.status(200).json({ items: frontendItems });
+    res.status(200).json({ items: allItems.map(toFrontendItem) });
   } catch (err) {
     console.error(err);
     res.status(500).json();
   }
 });
 
-// DELETE /items - array of string _id or single string
+// DELETE /items – accepts array of string _ids or a single string
 app.delete("/items", async (req: Request, res: Response) => {
   try {
     let ids = req.body;
@@ -140,8 +154,7 @@ app.delete("/items", async (req: Request, res: Response) => {
     await db.delete(itemsTable).where(inArray(itemsTable.id, numericIds));
 
     const allItems = await db.select().from(itemsTable);
-    const frontendItems = allItems.map(toFrontendItem);
-    res.status(200).json({ items: frontendItems });
+    res.status(200).json({ items: allItems.map(toFrontendItem) });
   } catch (err) {
     console.error(err);
     res.status(500).json();
