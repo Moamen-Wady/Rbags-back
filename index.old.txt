@@ -1,4 +1,4 @@
-import express, { Application, Request, Response, NextFunction } from "express";
+import express, { Application, Request, Response } from "express";
 import mongoose, { Schema, Document, Model } from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -20,16 +20,24 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Validate environment variables
 if (!process.env.MDBUSER || !process.env.MDBPWD || !process.env.MDBDB) {
-  throw new Error("MongoDB credentials are missing in environment variables");
+  console.error("Missing MongoDB credentials");
+  process.exit(1);
 }
 
+const mongoURI = `mongodb+srv://${process.env.MDBUSER}:${process.env.MDBPWD}@cluster0.iumas.mongodb.net/${process.env.MDBDB}?retryWrites=true&w=majority`;
+
+// Connect with modern options (avoid deprecation warnings)
 mongoose
-  .connect(
-    `mongodb+srv://${process.env.MDBUSER}:${process.env.MDBPWD}@cluster0.iumas.mongodb.net/${process.env.MDBDB}?retryWrites=true&w=majority`,
-  )
+  .connect(mongoURI, {
+    serverSelectionTimeoutMS: 5000,
+  })
   .then(() => console.log("MongoDB Connected"))
-  .catch((err) => console.log("MongoDB Connection Error:", err));
+  .catch((err) => {
+    console.error("MongoDB Connection Error:", err);
+    process.exit(1);
+  });
 
 interface IitemSchema extends Document {
   name: string;
@@ -51,34 +59,28 @@ const Item: Model<IitemSchema> = mongoose.model<IitemSchema>(
 );
 
 app.get("/", async (req: Request, res: Response) => {
-  res.status(200).send("ok");
-  return;
+  return res.status(200).send("ok");
 });
 
 app.post("/login", async (req: Request, res: Response) => {
   try {
-    if (req.body.pw == process.env.AdminPw) {
-      res.status(200).json({ user: "admin" });
-      return;
+    if (req.body.pw === process.env.AdminPw) {
+      return res.status(200).json({ user: "admin" });
     } else {
-      res.status(401).json();
-      return;
+      return res.status(401).json();
     }
   } catch {
-    res.status(500).json();
-    return;
+    return res.status(500).json();
   }
 });
 
 app.get("/items", async (req: Request, res: Response) => {
   try {
     const items = await Item.find().lean();
-    res.status(200).json({ items: items });
-    return;
+    return res.status(200).json({ items });
   } catch (err) {
     console.error(err);
-    res.status(500).json();
-    return;
+    return res.status(500).json();
   }
 });
 
@@ -86,12 +88,10 @@ app.post("/items", async (req: Request, res: Response) => {
   try {
     await Item.insertMany(req.body);
     const allItems = await Item.find().lean();
-    res.status(201).json({ items: allItems });
-    return;
+    return res.status(201).json({ items: allItems });
   } catch (err) {
     console.error(err);
-    res.status(500).json();
-    return;
+    return res.status(500).json();
   }
 });
 
@@ -105,12 +105,10 @@ app.put("/items", async (req: Request, res: Response) => {
     }));
     await Item.bulkWrite(bulkOps);
     const allItems = await Item.find().lean();
-    res.status(200).json({ items: allItems });
-    return;
+    return res.status(200).json({ items: allItems });
   } catch (err) {
     console.error(err);
-    res.status(500).json();
-    return;
+    return res.status(500).json();
   }
 });
 
@@ -123,13 +121,18 @@ app.delete("/items", async (req: Request, res: Response) => {
     }));
     await Item.bulkWrite(bulkOps);
     const allItems = await Item.find().lean();
-    res.status(200).json({ items: allItems });
-    return;
+    return res.status(200).json({ items: allItems });
   } catch (err) {
     console.error(err);
-    res.status(500).json();
-    return;
+    return res.status(500).json();
   }
+});
+
+// Graceful shutdown
+process.on("SIGINT", async () => {
+  await mongoose.disconnect();
+  console.log("MongoDB disconnected");
+  process.exit(0);
 });
 
 app.listen(3005, () => console.log(`Server running on port 3005`));
