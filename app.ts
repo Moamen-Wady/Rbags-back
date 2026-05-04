@@ -12,7 +12,6 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      "http://localhost:3005",
       "https://ramadan-bags.vercel.app",
       "https://ramadan-bags.pages.dev",
     ],
@@ -23,9 +22,26 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ----------------------
-// Routes (identical response shape)
-// ----------------------
+// Disable caching for all API responses (fix stale data on DELETE)
+app.use((req, res, next) => {
+  res.setHeader(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate, private",
+  );
+  res.setHeader("Pragma", "no-cache");
+  next();
+});
+
+// Helper: convert frontend _id (string) to number
+const toNumberId = (id: string | number): number => {
+  return typeof id === "string" ? parseInt(id, 10) : id;
+};
+
+// Helper: strip _id and ensure numeric id for updates
+const sanitizeForUpdate = (item: any): Partial<Item> => {
+  const { _id, ...rest } = item;
+  return rest;
+};
 
 app.get("/", async (req: Request, res: Response) => {
   res.status(200).send("ok");
@@ -43,7 +59,6 @@ app.post("/login", async (req: Request, res: Response) => {
   }
 });
 
-// GET /items – returns all items with _id alias (frontend expects _id)
 app.get("/items", async (req: Request, res: Response) => {
   try {
     const items = await db.select().from(itemsTable);
@@ -58,10 +73,28 @@ app.get("/items", async (req: Request, res: Response) => {
   }
 });
 
-// POST /items – insert multiple items (array of objects without id)
+// POST /items - handles both single object and array
 app.post("/items", async (req: Request, res: Response) => {
   try {
-    const newItems: NewItem[] = req.body;
+    let newItems: NewItem[] = [];
+
+    if (Array.isArray(req.body)) {
+      // Array of items
+      newItems = req.body.map((item: any) => {
+        const { _id, ...clean } = item; // remove any _id field
+        return clean;
+      });
+    } else {
+      // Single object
+      const { _id, ...clean } = req.body;
+      newItems = [clean];
+    }
+
+    if (newItems.length === 0) {
+      res.status(400).json({ error: "No items to insert" });
+      return;
+    }
+
     await db.insert(itemsTable).values(newItems);
     const allItems = await db.select().from(itemsTable);
     const allWithId = allItems.map((item) => ({
@@ -75,23 +108,27 @@ app.post("/items", async (req: Request, res: Response) => {
   }
 });
 
-// PUT /items – bulk update (each item must have _id field)
+// PUT /items - bulk update (accepts _id as string or number)
 app.put("/items", async (req: Request, res: Response) => {
   try {
-    const updates = req.body as (Item & { _id: number })[];
+    const updates = req.body; // array of items with _id field
+    if (!Array.isArray(updates)) {
+      res.status(400).json({ error: "Expected array of items" });
+      return;
+    }
+
     await db.transaction(async (tx) => {
       for (const item of updates) {
+        const idNum = toNumberId(item._id);
+        const updateData = sanitizeForUpdate(item);
+
         await tx
           .update(itemsTable)
-          .set({
-            name: item.name,
-            total: item.total,
-            unit: item.unit,
-            available: item.available,
-          })
-          .where(eq(itemsTable.id, item._id));
+          .set(updateData)
+          .where(eq(itemsTable.id, idNum));
       }
     });
+
     const allItems = await db.select().from(itemsTable);
     const allWithId = allItems.map((item) => ({
       ...item,
@@ -104,11 +141,17 @@ app.put("/items", async (req: Request, res: Response) => {
   }
 });
 
-// DELETE /items – bulk delete (array of ids)
+// DELETE /items - bulk delete (accepts array of _id strings or numbers)
 app.delete("/items", async (req: Request, res: Response) => {
   try {
-    const ids: number[] = req.body;
-    await db.delete(itemsTable).where(inArray(itemsTable.id, ids));
+    let ids = req.body;
+    if (!Array.isArray(ids)) {
+      ids = [ids];
+    }
+
+    const numericIds = ids.map((id: string | number) => toNumberId(id));
+    await db.delete(itemsTable).where(inArray(itemsTable.id, numericIds));
+
     const allItems = await db.select().from(itemsTable);
     const allWithId = allItems.map((item) => ({
       ...item,
