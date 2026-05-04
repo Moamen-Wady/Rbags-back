@@ -12,6 +12,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
+      "http://localhost:3005",
       "https://ramadan-bags.vercel.app",
       "https://ramadan-bags.pages.dev",
     ],
